@@ -20,6 +20,7 @@ library(plotly)
 library(knitr)
 library(kableExtra)
 library(gridExtra)
+library(scales)
 ```
 
 ## Part 1: Factor management
@@ -76,6 +77,7 @@ gap_new %>%
   scale_fill_brewer(palette = "Pastel2") + #change color palette
   guides(fill=FALSE) + #remove unnecessary color legend
   geom_boxplot() +
+  labs(x = "Continent", y = "Life Expectancy") +
   theme_bw() #select theme
 ```
 
@@ -94,6 +96,7 @@ gap_new %>%
   scale_fill_brewer(palette = "Pastel2") + #change color palette
   guides(fill=FALSE) + #remove unnecessary color legend
   geom_boxplot() +
+  labs(x = "Continent", y = "Life Expectancy") +
   theme_bw() #select theme
 ```
 
@@ -153,19 +156,17 @@ As we can see, the continents were arranged by the growth in GDP, but let's reme
 
 ```{r, fig.width=10, fig.height=5}
 p1 <- ggplot(gap_gdp, aes(x = country, y = growth)) +
-  #geom_point()+
-  geom_bar(stat = 'identity') +
+  geom_bar(stat = 'identity', fill = "plum") +
   coord_flip() +
   theme_bw()+
   labs(x = "", y = "Change in GDP (%)", title = "GDP growth in the Americas, 1987-2007")
 p2 <- ggplot(gap_gdp, aes(x = fct_reorder(country, growth), y = growth )) +
-  geom_bar(stat = 'identity') +
+  geom_bar(stat = 'identity', fill = "plum") +
   coord_flip() +
   theme_bw()+
   labs(x = "", y = "Change in GDP (%)", title = "Ordered by economic growth")
   
 grid.arrange(p1, p2, nrow = 1)
-
 ```
 
 
@@ -235,4 +236,54 @@ levels(gap_growth_dget$country)
 class(gap_growth_dget$country)
 ```
 
-Similar with `RDS`, We can see that `dput()` and `dget()` conserve the datatypes when saving and reading a txt file. 
+Similar with `RDS`, We can see that `dput()` and `dget()` conserve the datatypes when saving and reading a txt file. The variable `country` is still considered a factor and the factor levels remain.
+
+### Part 3: Visualization design
+
+In this section I'll create a figure and improve its design. 
+
+```{r}
+gap_gdp_mean <- gapminder %>%
+  filter(continent != "Oceania") %>% #remove Oceania as it is only 2 countries
+  group_by(continent,year) %>% #group by continent
+  mutate(meanGDP = mean(gdpPercap))
+
+plot<- gap_gdp_mean %>% 
+        ggplot(aes(x = year, y = meanGDP, color = continent)) + #group data by years
+        scale_color_brewer(palette = "Dark2") + #change color palette
+        guides(fill=FALSE) + #remove unnecessary color legend
+        geom_point() + # plot data poings
+        geom_smooth(method = lm, size = 0.5) + #add linear regression line
+        facet_wrap(~continent) + #create subplots by continent
+        guides(color=FALSE) + #remove unnecessary color legend
+        theme_bw() + #select theme
+        scale_y_log10(labels=dollar_format()) +
+        scale_x_continuous(breaks = seq(1952,2007, 5)) + # change scale breaks in x axis
+        labs(y = "Mean GDP", x = "", title = "GDP per capita") + #modify labels and title
+        #scale_y_continuous(labels=dollar_format()) + # add commas and $ sign to the y axis ticks labels
+        theme(strip.text = element_text(face="bold", size=10), # change text size of the strips
+              axis.text = element_text(size=10), #lticj labels size
+              axis.text.x = element_text(angle = 45, hjust = 1), #change x axis tick labels angle
+              strip.background = element_rect(fill = "lavender")) #change strip background color
+
+plot
+```
+
+Not let make it interactive with plotly
+
+```{r}
+#install.packages("plotly")
+library(plotly)
+ggplotly(p2)
+ggplotly(plot)
+```
+
+
+#### Part 4: Writing figures to file
+
+```{r}
+#ggsave("hw05_factor_figure_mgmt_files/plot_gdpchange.png", p2)
+
+#ggsave("hw05_factor_figure_mgmt_files/plot_gdpchange.svg", p2, units = "cm", width = 12, height = 8)
+```
+
