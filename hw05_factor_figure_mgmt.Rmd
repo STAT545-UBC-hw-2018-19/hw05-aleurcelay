@@ -91,13 +91,14 @@ What effect does this have on a figure?
 Here I will try to sort the data of the same figure but using `reorder()` instead. 
 
 ```{r}
-gap_new %>%
+p0 <- gap_new %>%
   ggplot(aes(x = reorder(continent, minlife), y = lifeExp, fill = continent)) +
   scale_fill_brewer(palette = "Pastel2") + #change color palette
   guides(fill=FALSE) + #remove unnecessary color legend
   geom_boxplot() +
   labs(x = "Continent", y = "Life Expectancy") +
   theme_bw() #select theme
+p0
 ```
 
 As the `reorder()` function does reorders the levels of the factor, the continents in the figure are now ordered as desired (by minimum life expectancy).
@@ -135,10 +136,10 @@ As noted, we are now left with 4 levels. The Oceania level was removed by using 
 
 ### Reorder the levels of `continent`
 
-Here, I will use the forcats package to change the order of the factor levels, based on the maxmimum value of gdp per capita.
-I'm interested in looking at the growth in gdp in countries from the Americas from the last 20 years of data (1987-2007)
+Here, I will use the `forcats` package to change the order of the factor levels, based on the change in % of GDP per capita.
+I'm interested in looking at the change in GDP in countries of the Americas from the last 20 years of data (1987-2007)
 
-First let's calculate the growth in this period:
+First let's calculate the % change in this period:
 
 ```{r}
 gap_gdp <- gapminder %>%
@@ -240,7 +241,7 @@ Similar with `RDS`, We can see that `dput()` and `dget()` conserve the datatypes
 
 ### Part 3: Visualization design
 
-In this section I'll create a figure and improve its design. 
+In this section I'll create a figure with a nice design using tools learned in class. 
 
 ```{r}
 gap_gdp_mean <- gapminder %>%
@@ -248,7 +249,7 @@ gap_gdp_mean <- gapminder %>%
   group_by(continent,year) %>% #group by continent
   mutate(meanGDP = mean(gdpPercap))
 
-plot<- gap_gdp_mean %>% 
+p3<- gap_gdp_mean %>% 
         ggplot(aes(x = year, y = meanGDP, color = continent)) + #group data by years
         scale_color_brewer(palette = "Dark2") + #change color palette
         guides(fill=FALSE) + #remove unnecessary color legend
@@ -266,24 +267,44 @@ plot<- gap_gdp_mean %>%
               axis.text.x = element_text(angle = 45, hjust = 1), #change x axis tick labels angle
               strip.background = element_rect(fill = "lavender")) #change strip background color
 
-plot
+p3
 ```
 
-Not let make it interactive with plotly
+Not lets make an interactive plot using `plotly`. To be able to display the interactive plot, I will save to plotly online.
 
-```{r}
+```{r, warning=FALSE, message = FALSE}
 #install.packages("plotly")
 library(plotly)
-ggplotly(p2)
-ggplotly(plot)
+api_create(p0, filename = "hw05-boxplot")
 ```
+
+You can view my interactive boxplot of life expectancy [here](https://plot.ly/~aleurcelay/5/#/)
+
+Plotly allows to view the descriptive statistics of life expectancy by continent just by hovering in each boxplot. 
+This makes it easy to view the summary statistics and it wouldn't be possible using just `ggplot`.
 
 
 #### Part 4: Writing figures to file
 
-```{r}
-#ggsave("hw05_factor_figure_mgmt_files/plot_gdpchange.png", p2)
+I will save some figures as png (raster) and also PDF (vector).
 
-#ggsave("hw05_factor_figure_mgmt_files/plot_gdpchange.svg", p2, units = "cm", width = 12, height = 8)
+```{r}
+ggsave("hw05_factor_figure_mgmt_files/plot_gdpchange.png", p2)
+
+ggsave("hw05_factor_figure_mgmt_files/plot_gdpchange.pdf", p2, 
+       units = "cm", height = 10, width = 12) #adjust size to better display
+ggsave("hw05_factor_figure_mgmt_files/plot_gdpcontinents.pdf", p3, 
+       units = "cm", height = 10, width = 15)
 ```
 
+Saved images can be imported to Markdown:
+
+![import .png file](./hw05_factor_figure_mgmt_files/plot_gdpchange.png)
+
+
+
+#### Resources:
+
+* [Be the boss of your factors](http://stat545.com/block029_factors.html)
+* [forcats](https://forcats.tidyverse.org/reference/index.html)
+* [Plotly: getting started](https://plot.ly/r/getting-started/)
