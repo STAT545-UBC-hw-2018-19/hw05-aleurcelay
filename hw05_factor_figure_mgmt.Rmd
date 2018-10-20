@@ -1,0 +1,238 @@
+---
+title: "hw05_factor_figure_mgmt"
+author: "Alejandra"
+date: "17/10/2018"
+output: github_document
+always_allow_html: yes
+---
+
+## Factor and figure management
+
+This is an R Markdown document elaborated to serve as a personal cheatsheet on the topic of factor and figure management.
+For the exercises contained in this assignment, I chose to work with the `gapminder` dataset. 
+
+## Loading data and required libraries 
+
+```{r, warning=FALSE, message = FALSE}
+library(gapminder)
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(kableExtra)
+library(gridExtra)
+```
+
+## Part 1: Factor management
+
+*Factor inspection*
+
+First, let's ensure the variables that I'll explore are factors.
+This can be done by looking at the class of the variables.
+
+```{r}
+# showing str() output as a table
+data.frame(variable = names(gapminder),
+           class = sapply(gapminder, class),
+           levels = sapply(gapminder, nlevels),
+           first_values = sapply(gapminder, function(x) paste0(head(x),  collapse = ", ")),
+           row.names = NULL) %>%
+  kable() %>%
+  kable_styling(full_width = F, position = "center")
+```
+
+In the table above we can see the classes of all variables. The variables `country` and `continent` are indeed factors, `country` has 142 levels and `continent` has 5 levels.
+
+**Explore the effects of `arrange()`**
+
+Does merely arranging the data have any effect on a figure?
+
+Here, I'll explore what happens to a figure after sorting the data with the `arrange()` function. I'll order the `continent` variable according to the minimum value of life expectancy. 
+
+First let's check that `arrange()` works:
+
+```{r}
+#new dataset with continent and minimum lifeExp
+gap_minlifeExp <- gapminder %>% 
+  group_by(continent) %>%
+  summarize(minlife = min(lifeExp)) %>%
+  arrange(minlife)
+
+kable(gap_minlifeExp) %>%
+  kable_styling(full_width = F)
+  
+```
+
+We can see that the data in the table was indeed arranged by the minimum value of life expectancy in each continent in ascending order. 
+
+Now let's try arranging the data in a figure. For the purposes of plotting, I will join the dataset `gap_minlifeExp` created above with the `gapminder` dataset and arrange the data using `minlife` as before. 
+
+```{r}
+gap_new <- left_join(gapminder, gap_minlifeExp, by = "continent") #join datasets to create a boxplot
+
+
+gap_new %>% 
+  arrange(minlife) %>% 
+  ggplot(aes(x = continent, y = lifeExp, fill = continent)) +
+  scale_fill_brewer(palette = "Pastel2") + #change color palette
+  guides(fill=FALSE) + #remove unnecessary color legend
+  geom_boxplot() +
+  theme_bw() #select theme
+```
+
+As we can see, in the figure the data wasn't arranged as it was in the output table, instead, continents are sorted alphabetically. 
+
+
+**Explore the effects of reordering a factor**
+
+What effect does this have on a figure?
+
+Here I will try to sort the data of the same figure but using `reorder()` instead. 
+
+```{r}
+gap_new %>%
+  ggplot(aes(x = reorder(continent, minlife), y = lifeExp, fill = continent)) +
+  scale_fill_brewer(palette = "Pastel2") + #change color palette
+  guides(fill=FALSE) + #remove unnecessary color legend
+  geom_boxplot() +
+  theme_bw() #select theme
+```
+
+As the `reorder()` function does reorders the levels of the factor, the continents in the figure are now ordered as desired (by minimum life expectancy).
+
+
+### Drop Oceania
+
+In this section, I'll flter the `gpminder` data to remove observations associated with the continent of Oceania. Additionally, remove unused factor levels. Provide concrete information on the data before and after removing these rows and Oceania; address the number of rows and the levels of the affected factors.
+
+```{r}
+gap_no_oceania <- gapminder %>%
+  filter(continent != "Oceania")
+
+str(gap_no_oceania)
+```
+
+Looking at the structure, we can see that the number of observations in `gap_no_oceania` is different from the original `gapminder` dataset: 1680 vs. 1704 respectiveley, however the number of levels in both `country` and `continent` is still the same. 
+
+Let's look at the unique values in `gap_no_oceania`
+```{r}
+summary(gap_no_oceania$continent)
+```
+
+We can see that the observations from Oceania were removed but is still in the factor levels.
+
+Let's remove Oceania from the levels:
+
+```{r}
+gap_no_oceania <- droplevels(gap_no_oceania)
+nlevels(gap_no_oceania$continent) #check the number of levels
+summary(gap_no_oceania$continent) #check which are the remaining levels 
+```
+
+As noted, we are now left with 4 levels. The Oceania level was removed by using `droplevels()`, this function drops unused levels from a factor, since Oceania didn't have observations anymore it was dropped. 
+
+### Reorder the levels of `continent`
+
+Here, I will use the forcats package to change the order of the factor levels, based on the maxmimum value of gdp per capita.
+I'm interested in looking at the growth in gdp in countries from the Americas from the last 20 years of data (1987-2007)
+
+First let's calculate the growth in this period:
+
+```{r}
+gap_gdp <- gapminder %>%
+  filter(continent == "Americas", year %in% c(1987, 2007)) %>%
+  select(country, year, gdpPercap) %>%
+  spread(key = year, value = gdpPercap) %>%
+  mutate(growth = (`2007` - `1987`)/`1987`*100) %>% #calculate percentage of change
+  arrange(growth)
+
+kable(gap_gdp) %>%
+  kable_styling(full_width = F)
+```
+
+As we can see, the continents were arranged by the growth in GDP, but let's remember that it doesn't change the order of levels. I will use `fct_reorder` to make my plot look nicer and compare with ploting without reordering. 
+
+```{r, fig.width=10, fig.height=5}
+p1 <- ggplot(gap_gdp, aes(x = country, y = growth)) +
+  #geom_point()+
+  geom_bar(stat = 'identity') +
+  coord_flip() +
+  theme_bw()+
+  labs(x = "", y = "Change in GDP (%)", title = "GDP growth in the Americas, 1987-2007")
+p2 <- ggplot(gap_gdp, aes(x = fct_reorder(country, growth), y = growth )) +
+  geom_bar(stat = 'identity') +
+  coord_flip() +
+  theme_bw()+
+  labs(x = "", y = "Change in GDP (%)", title = "Ordered by economic growth")
+  
+grid.arrange(p1, p2, nrow = 1)
+
+```
+
+
+### Part 2: File I/O
+
+#### `write_csv()`
+
+First, I'll check again that levels are saved 
+
+```{r}
+class(gap_gdp$country)  # corroborate that it is factor
+gap_gdp <- gap_gdp %>%
+            mutate(country = fct_reorder(country, growth)) # Change factor levels to non-alphabetical
+
+levels(gap_gdp$country) # corroborate reordering
+
+# Save the dataframe into a csv file
+write_csv(gap_gdp, "hw05_factor_figure_mgmt_files/gap_gdp.csv")
+
+```
+
+#### `read_csv()`
+
+```{r}
+# Read in the data frame
+gap_growth_new <- read_csv(file = "hw05_factor_figure_mgmt_files/gap_gdp.csv", col_names = TRUE)
+levels(gap_growth_new$country)
+gap_growth_new
+
+class(gap_growth_new$country)  # check class
+```
+
+The dataframe before generating the csv file considered `country` as a factor. 
+After opening the same file, the `country` variable is considered as character.
+
+#### `saveRDS()`
+
+Now lets try with `saveRDS`
+```{r}
+saveRDS(gap_gdp, "hw05_factor_figure_mgmt_files/gap_gdp_factor.rds")
+
+```
+
+#### `readRDS()`
+
+
+```{r}
+gap_growth_rds <- readRDS("hw05_factor_figure_mgmt_files/gap_gdp_factor.rds")
+levels(gap_growth_rds$country)
+class(gap_growth_rds$country)
+```
+
+We can see that `saveRDS()` and `readRDS()` conserve the datatypes when saving and reading an rds file.
+
+#### `dput()`
+
+```{r}
+dput(gap_gdp, "hw05_factor_figure_mgmt_files/gap_gdp_factor.txt")
+```
+
+
+#### `dget()`
+
+```{r}
+gap_growth_dget <- dget("hw05_factor_figure_mgmt_files/gap_gdp_factor.txt")
+levels(gap_growth_dget$country)
+class(gap_growth_dget$country)
+```
+
+Similar with `RDS`, We can see that `dput()` and `dget()` conserve the datatypes when saving and reading a txt file. 
